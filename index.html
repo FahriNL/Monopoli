@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MONEYOPOLI - Digital Wallet</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- PeerJS -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    
+    <!-- Icons (Lucide via CDN script) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --bg-color: #0D0D0F;
+            --surface: rgba(26, 26, 46, 0.7);
+            --surface-solid: #1A1A2E;
+            --surface-hover: rgba(40, 40, 70, 0.8);
+            --border: rgba(255, 255, 255, 0.1);
+            --text-main: #FFFFFF;
+            --text-muted: #A0A0B0;
+            --gold: #F5C518;
+            --emerald: #00B894;
+            --danger: #FF4757;
+            --blur: blur(12px);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'DM Sans', sans-serif; }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        h1, h2, h3, .brand { font-family: 'Syne', sans-serif; }
+
+        /* Typography Utilities */
+        .text-gold { color: var(--gold); }
+        .text-emerald { color: var(--emerald); }
+        .text-danger { color: var(--danger); }
+        .text-muted { color: var(--text-muted); }
+        .font-bold { font-weight: 700; }
+        .text-center { text-align: center; }
+        .text-2xl { font-size: 1.5rem; }
+        .text-4xl { font-size: 2.25rem; }
+
+        /* Layout & UI Elements */
+        .container {
+            width: 100%;
+            max-width: 430px;
+            margin: 0 auto;
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .screen { display: none; flex-direction: column; flex: 1; animation: fadeIn 0.3s ease; }
+        .screen.active { display: flex; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .glass-card {
+            background: var(--surface);
+            backdrop-filter: var(--blur);
+            -webkit-backdrop-filter: var(--blur);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        /* Buttons */
+        button {
+            background: var(--surface-solid);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 15px 20px;
+            border-radius: 15px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        button:hover, button:active { background: var(--surface-hover); }
+        button.primary { background: var(--gold); color: var(--bg-color); border: none; }
+        button.primary:hover { background: #e0b415; }
+        button.success { background: var(--emerald); color: white; border: none; }
+        button.danger { background: var(--danger); color: white; border: none; }
+        
+        /* Inputs */
+        input, select {
+            width: 100%;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 1rem;
+            margin-bottom: 15px;
+            outline: none;
+        }
+        input:focus, select:focus { border-color: var(--gold); }
+        input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+        /* Grid specific */
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .action-btn { flex-direction: column; padding: 15px 10px; gap: 8px; font-size: 0.85rem; }
+        .action-btn i { width: 24px; height: 24px; }
+
+        /* Navigation Bar */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: var(--surface-solid);
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+            z-index: 100;
+        }
+        .nav-item {
+            display: flex; flex-direction: column; align-items: center; gap: 5px;
+            color: var(--text-muted); font-size: 0.75rem; border: none; background: transparent; padding: 5px 10px; width: auto; border-radius: 10px;
+        }
+        .nav-item.active { color: var(--gold); }
+        .nav-item i { width: 20px; height: 20px; }
+        
+        .game-content { padding-bottom: 80px; } /* Space for nav */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.2s ease; }
+
+        /* Lists */
+        .list-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px; border-bottom: 1px solid var(--border);
+        }
+        .list-item:last-child { border-bottom: none; }
+        
+        /* Avatars */
+        .avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-family: 'Syne'; border: 2px solid rgba(255,255,255,0.2); }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
+            display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+        }
+        .modal-overlay.active { display: flex; animation: fadeIn 0.2s ease; }
+        .modal-content { width: 100%; max-width: 380px; }
+        
+        /* Property Colors */
+        .prop-color { width: 20px; height: 20px; border-radius: 4px; display: inline-block; }
+        .prop-brown { background: #8B4513; } .prop-lblue { background: #87CEEB; }
+        .prop-pink { background: #FF69B4; } .prop-orange { background: #FFA500; }
+        .prop-red { background: #FF0000; } .prop-yellow { background: #FFD700; }
+        .prop-green { background: #008000; } .prop-dblue { background: #00008B; }
+        .prop-station { background: #333333; } .prop-util { background: #D3D3D3; }
+
+        .loader {
+            border: 3px solid var(--border); border-top: 3px solid var(--gold);
+            border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: inline-block;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Toast */
+        #toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: var(--surface-solid); border: 1px solid var(--border);
+            padding: 12px 24px; border-radius: 30px; z-index: 2000;
+            display: none; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .badge { background: var(--border); padding: 3px 8px; border-radius: 10px; font-size: 0.7rem; margin-left: 10px; }
+    </style>
+</head>
+<body>
+
+    <!-- Toast Notification -->
+    <div id="toast">Message</div>
+
+    <!-- 1. HOME SCREEN -->
+    <div id="screen-home" class="screen active container" style="justify-content: center;">
+        <div class="text-center mb-8">
+            <h1 class="brand text-4xl text-gold mb-2">MONEYOPOLI</h1>
+            <p class="text-muted">Digital Banker & Wallet</p>
+        </div>
+        <div class="glass-card" style="margin-top: 40px;">
+            <button onclick="nav('screen-host-setup')" class="primary" style="margin-bottom: 15px;">
+                <i data-lucide="crown"></i> Create Game (Host)
+            </button>
+            <button onclick="nav('screen-join')">
+                <i data-lucide="users"></i> Join Game
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. HOST SETUP SCREEN -->
+    <div id="screen-host-setup" class="screen container">
+        <h2 class="mb-4">Host Settings</h2>
+        <div class="glass-card flex-1">
+            <label class="text-muted text-sm block mb-2">Your Name</label>
+            <input type="text" id="host-name" value="Banker" placeholder="Your Name">
+            
+            <label class="text-muted text-sm block mb-2">Starting Balance (Rp)</label>
+            <input type="number" id="host-start-bal" value="15000000">
+            
+            <label class="text-muted text-sm block mb-2">Pass GO Salary (Rp)</label>
+            <input type="number" id="host-salary" value="2000000">
+            
+            <button onclick="initHost()" class="primary mt-4" id="btn-create-room">Create Room</button>
+            <button onclick="nav('screen-home')" style="margin-top: 10px; background: transparent;">Cancel</button>
+        </div>
+    </div>
+
+    <!-- 3. JOIN SCREEN -->
+    <div id="screen-join" class="screen container">
+        <h2 class="mb-4">Join Game</h2>
+        <div class="glass-card flex-1">
+            <label class="text-muted text-sm block mb-2">Room Code (4 Digits)</label>
+            <input type="number" id="join-code" placeholder="e.g. 1234">
+            
+            <label class="text-muted text-sm block mb-2">Your Name</label>
+            <input type="text" id="join-name" placeholder="Enter Name">
+            
+            <button onclick="joinGame()" class="primary mt-4" id="btn-join-room">Connect</button>
+            <button onclick="nav('screen-home')" style="margin-top: 10px; background: transparent;">Cancel</button>
+        </div>
+    </div>
+
+    <!-- 4. LOBBY SCREEN -->
+    <div id="screen-lobby" class="screen container">
+        <div class="text-center glass-card">
+            <p class="text-muted">Room Code</p>
+            <h1 class="text-4xl text-gold" id="lobby-code">----</h1>
+        </div>
+        
+        <h3 class="mb-2 mt-4">Players (<span id="lobby-count">0</span>/6)</h3>
+        <div class="glass-card flex-1" style="overflow-y: auto;">
+            <div id="lobby-players-list"></div>
+        </div>
+        
+        <div id="lobby-host-controls" style="display: none;">
+            <button onclick="startGame()" class="primary" id="btn-start-game">Start Game</button>
+        </div>
+        <p id="lobby-wait-text" class="text-center text-muted mt-4">Waiting for host to start...</p>
+    </div>
+
+    <!-- 5. MAIN GAME SCREEN -->
+    <div id="screen-game" class="screen game-content">
+        
+        <!-- Tab: Wallet (Player View) -->
+        <div id="tab-wallet" class="tab-content container active">
+            <div class="glass-card text-center relative">
+                <div id="my-avatar" class="avatar mx-auto mb-2" style="position: absolute; top: 15px; right: 15px; width: 30px; height: 30px; font-size: 12px;"></div>
+                <p class="text-muted" id="wallet-name">My Wallet</p>
+                <h1 class="text-4xl text-gold mt-2 mb-2" id="wallet-balance">Rp 0</h1>
+                <p class="text-sm text-emerald" style="display:none;" id="wallet-networth">Net Worth: Rp 0</p>
+            </div>
+
+            <div class="action-grid mt-4">
+                <button class="action-btn" onclick="openModal('modal-pay-player')">
+                    <i data-lucide="send"></i> Pay Player
+                </button>
+                <button class="action-btn" onclick="openModal('modal-pay-bank')">
+                    <i data-lucide="building-2"></i> Pay Bank
+                </button>
+                <button class="action-btn" onclick="openModal('modal-get-bank')">
+                    <i data-lucide="hand-coins"></i> Get from Bank
+                </button>
+                <button class="action-btn" onclick="openModal('modal-buy-property')">
+                    <i data-lucide="home"></i> Buy Property
+                </button>
+            </div>
+            
+            <h3 class="mt-6 mb-3">Recent Transactions</h3>
+            <div class="glass-card" style="padding: 0;">
+                <div id="wallet-mini-log"></div>
+            </div>
+        </div>
+
+        <!-- Tab: Properties -->
+        <div id="tab-properties" class="tab-content container">
+            <h2 class="mb-4">Properties</h2>
+            <div class="glass-card" style="padding: 10px;">
+                <input type="text" id="prop-search" placeholder="Search property..." onkeyup="renderProperties()" style="margin-bottom: 0;">
+            </div>
+            <div id="properties-list" style="padding-bottom: 20px;"></div>
+        </div>
+
+        <!-- Tab: Log -->
+        <div id="tab-log" class="tab-content container">
+            <h2 class="mb-4">Transaction History</h2>
+            <div class="glass-card" style="padding: 0;">
+                <div id="full-log-list"></div>
+            </div>
+        </div>
+
+        <!-- Tab: Host Dashboard -->
+        <div id="tab-host" class="tab-content container">
+            <h2 class="mb-4">Banker Dashboard <button onclick="endGameConfirm()" class="danger" style="padding: 5px 10px; width: auto; float: right; font-size: 0.8rem;">End Game</button></h2>
+            <div class="glass-card text-center mb-4">
+                <p class="text-muted">Total Money in Circulation</p>
+                <h2 class="text-gold" id="host-total-money">Rp 0</h2>
+            </div>
+            <h3 class="mb-2">Players</h3>
+            <div class="glass-card" style="padding: 0;">
+                <div id="host-players-list"></div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <div class="bottom-nav">
+            <button class="nav-item active" onclick="switchTab('tab-wallet')">
+                <i data-lucide="wallet"></i> Wallet
+            </button>
+            <button class="nav-item" onclick="switchTab('tab-properties')">
+                <i data-lucide="map"></i> Properties
+            </button>
+            <button class="nav-item" onclick="switchTab('tab-log')">
+                <i data-lucide="scroll-text"></i> Log
+            </button>
+            <button class="nav-item host-only" onclick="switchTab('tab-host')" style="display: none;">
+                <i data-lucide="crown"></i> Banker
+            </button>
+        </div>
+    </div>
+
+    <!-- 6. END SCREEN -->
+    <div id="screen-end" class="screen container" style="justify-content: center; align-items: center;">
+        <h1 class="text-4xl text-gold mb-2 text-center">GAME OVER</h1>
+        <p class="text-muted mb-6 text-center">Final Wealth Leaderboard</p>
+        
+        <div class="glass-card w-full" style="width: 100%;">
+            <div id="end-leaderboard"></div>
+        </div>
+        <button onclick="location.reload()" class="primary mt-6">Back to Home</button>
+    </div>
+
+    <!-- MODALS -->
+    
+    <!-- Modal: Pay Player -->
+    <div id="modal-pay-player" class="modal-overlay">
+        <div class="glass-card modal-content">
+            <h3 class="mb-4">Pay Another Player</h3>
+            <select id="pay-player-select"></select>
+            <input type="number" id="pay-player-amount" placeholder="Amount (Rp)">
+            <div style="display: flex; gap: 10px;">
+                <button onclick="closeModal('modal-pay-player')" style="background: transparent;">Cancel</button>
+                <button onclick="initiatePayPlayer()" class="primary">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Confirm Received Payment -->
+    <div id="modal-confirm-receive" class="modal-overlay">
+        <div class="glass-card modal-content text-center">
+            <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(0,184,148,0.2); color: var(--emerald); display: flex; align-items: center; justify-content: center; margin: 0 auto 15px;">
+                <i data-lucide="arrow-down-to-line" style="width: 30px; height: 30px;"></i>
+            </div>
+            <h3 class="mb-2">Incoming Payment</h3>
+            <p class="text-muted mb-2">From: <span id="confirm-receive-from" class="text-white font-bold"></span></p>
+            <h2 class="text-gold mb-6" id="confirm-receive-amount"></h2>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="resolveTransfer(false)" class="danger">Decline</button>
+                <button onclick="resolveTransfer(true)" class="success">Accept</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Pay Bank -->
+    <div id="modal-pay-bank" class="modal-overlay">
+        <div class="glass-card modal-content">
+            <h3 class="mb-4">Pay Bank (Taxes, Fines, etc.)</h3>
+            <input type="number" id="pay-bank-amount" placeholder="Amount (Rp)">
+            <div style="display: flex; gap: 10px;">
+                <button onclick="closeModal('modal-pay-bank')" style="background: transparent;">Cancel</button>
+                <button onclick="payBank()" class="danger">Pay Bank</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Get from Bank -->
+    <div id="modal-get-bank" class="modal-overlay">
+        <div class="glass-card modal-content">
+            <h3 class="mb-4">Receive from Bank</h3>
+            <button onclick="receivePassGo()" class="success mb-3">Pass GO (Collect Salary)</button>
+            <div style="text-align: center; margin: 10px 0; color: var(--text-muted); font-size: 0.9rem;">OR CUSTOM AMOUNT</div>
+            <input type="number" id="get-bank-amount" placeholder="Custom Amount (Rp)">
+            <div style="display: flex; gap: 10px;">
+                <button onclick="closeModal('modal-get-bank')" style="background: transparent;">Cancel</button>
+                <button onclick="receiveCustomBank()" class="primary">Receive</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Buy Property -->
+    <div id="modal-buy-property" class="modal-overlay">
+        <div class="glass-card modal-content">
+            <h3 class="mb-4">Buy Unowned Property</h3>
+            <select id="buy-prop-select"></select>
+            <p class="text-muted text-sm mb-4">Cost will be deducted automatically.</p>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="closeModal('modal-buy-property')" style="background: transparent;">Cancel</button>
+                <button onclick="buyProperty()" class="primary">Buy</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal: Property Actions (Build/Sell) -->
+    <div id="modal-prop-action" class="modal-overlay">
+        <div class="glass-card modal-content">
+            <h3 id="pa-name" class="mb-2">Property Name</h3>
+            <p class="text-muted mb-4">Owner: <span id="pa-owner"></span></p>
+            
+            <div id="pa-owner-actions" style="display: none; flex-direction: column; gap: 10px;">
+                <button onclick="buildHouse()" class="success">Build House/Hotel (<span id="pa-house-price"></span>)</button>
+            </div>
+            <div id="pa-host-actions" style="display: none; flex-direction: column; gap: 10px; margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
+                <p class="text-sm text-muted">Banker Actions</p>
+                <button onclick="forceTransferProp()" class="primary">Transfer Ownership</button>
+            </div>
+
+            <button onclick="closeModal('modal-prop-action')" style="background: transparent; margin-top: 15px;">Close</button>
+        </div>
+    </div>
+
+    <!-- Modal: Host Player Admin -->
+    <div id="modal-host-player" class="modal-overlay">
+        <div class="glass-card modal-content">
+            <h3 class="mb-2">Manage: <span id="hp-name"></span></h3>
+            <p class="mb-4">Balance: <span id="hp-balance" class="text-gold"></span></p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button onclick="adminGiveMoney()" class="success">Give Custom Money</button>
+                <button onclick="adminDeclareBankrupt()" class="danger">Declare Bankrupt</button>
+            </div>
+            <button onclick="closeModal('modal-host-player')" style="background: transparent; margin-top: 15px;">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // --- CONSTANTS & DATA ---
+        const APP_PREFIX = 'mnply-v1-';
+        const COLORS = ['#FF4757', '#00B894', '#0984E3', '#FDCB6E', '#6C5CE7', '#E84393'];
+        
+        // Property Dataset (Scaled x10000 from standard to match 15M start balance)
+        const DEFAULT_PROPERTIES = [
+            { id: 'p1', name: 'Mediterranean Ave', group: 'brown', price: 600000, housePrice: 500000, cssClass: 'prop-brown' },
+            { id: 'p2', name: 'Baltic Ave', group: 'brown', price: 600000, housePrice: 500000, cssClass: 'prop-brown' },
+            { id: 'p3', name: 'Reading Railroad', group: 'station', price: 2000000, housePrice: 0, cssClass: 'prop-station' },
+            { id: 'p4', name: 'Oriental Ave', group: 'lblue', price: 1000000, housePrice: 500000, cssClass: 'prop-lblue' },
+            { id: 'p5', name: 'Vermont Ave', group: 'lblue', price: 1000000, housePrice: 500000, cssClass: 'prop-lblue' },
+            { id: 'p6', name: 'Connecticut Ave', group: 'lblue', price: 1200000, housePrice: 500000, cssClass: 'prop-lblue' },
+            { id: 'p7', name: 'St. Charles Place', group: 'pink', price: 1400000, housePrice: 1000000, cssClass: 'prop-pink' },
+            { id: 'p8', name: 'Electric Company', group: 'util', price: 1500000, housePrice: 0, cssClass: 'prop-util' },
+            { id: 'p9', name: 'States Ave', group: 'pink', price: 1400000, housePrice: 1000000, cssClass: 'prop-pink' },
+            { id: 'p10', name: 'Virginia Ave', group: 'pink', price: 1600000, housePrice: 1000000, cssClass: 'prop-pink' },
+            { id: 'p11', name: 'Pennsylvania Railroad', group: 'station', price: 2000000, housePrice: 0, cssClass: 'prop-station' },
+            { id: 'p12', name: 'St. James Place', group: 'orange', price: 1800000, housePrice: 1000000, cssClass: 'prop-orange' },
+            { id: 'p13', name: 'Tennessee Ave', group: 'orange', price: 1800000, housePrice: 1000000, cssClass: 'prop-orange' },
+            { id: 'p14', name: 'New York Ave', group: 'orange', price: 2000000, housePrice: 1000000, cssClass: 'prop-orange' },
+            { id: 'p15', name: 'Kentucky Ave', group: 'red', price: 2200000, housePrice: 1500000, cssClass: 'prop-red' },
+            { id: 'p16', name: 'Indiana Ave', group: 'red', price: 2200000, housePrice: 1500000, cssClass: 'prop-red' },
+            { id: 'p17', name: 'Illinois Ave', group: 'red', price: 2400000, housePrice: 1500000, cssClass: 'prop-red' },
+            { id: 'p18', name: 'B. & O. Railroad', group: 'station', price: 2000000, housePrice: 0, cssClass: 'prop-station' },
+            { id: 'p19', name: 'Atlantic Ave', group: 'yellow', price: 2600000, housePrice: 1500000, cssClass: 'prop-yellow' },
+            { id: 'p20', name: 'Ventnor Ave', group: 'yellow', price: 2600000, housePrice: 1500000, cssClass: 'prop-yellow' },
+            { id: 'p21', name: 'Water Works', group: 'util', price: 1500000, housePrice: 0, cssClass: 'prop-util' },
+            { id: 'p22', name: 'Marvin Gardens', group: 'yellow', price: 2800000, housePrice: 1500000, cssClass: 'prop-yellow' },
+            { id: 'p23', name: 'Pacific Ave', group: 'green', price: 3000000, housePrice: 2000000, cssClass: 'prop-green' },
+            { id: 'p24', name: 'North Carolina Ave', group: 'green', price: 3000000, housePrice: 2000000, cssClass: 'prop-green' },
+            { id: 'p25', name: 'Pennsylvania Ave', group: 'green', price: 3200000, housePrice: 2000000, cssClass: 'prop-green' },
+            { id: 'p26', name: 'Short Line', group: 'station', price: 2000000, housePrice: 0, cssClass: 'prop-station' },
+            { id: 'p27', name: 'Park Place', group: 'dblue', price: 3500000, housePrice: 2000000, cssClass: 'prop-dblue' },
+            { id: 'p28', name: 'Boardwalk', group: 'dblue', price: 4000000, housePrice: 2000000, cssClass: 'prop-dblue' }
+        ];
+
+        // --- GLOBAL STATE ---
+        let peer = null;
+        let isHost = false;
+        let myId = null;
+        let roomCode = null;
+        
+        // Host state
+        let hostConnections = {}; // peerId -> conn
+        let gameState = {
+            status: 'lobby', // lobby, playing, ended
+            settings: { startBalance: 15000000, salary: 2000000 },
+            players: {}, // id -> { name, color, balance, isHost, bankrupt }
+            properties: {}, // id -> { ownerId, houses: 0 }
+            log: [] // { id, timestamp, type, from, to, amount, msg }
+        };
+
+        // Client state
+        let clientConn = null;
+        let pendingTransfer = null;
+        let selectedPropertyId = null;
+        let selectedPlayerId = null;
+
+        // --- UTILS ---
+        const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
+        const nav = (id) => { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); };
+        const switchTab = (id) => { 
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active')); 
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            event.currentTarget.classList.add('active');
+            if(id === 'tab-properties') renderProperties();
+        };
+        const openModal = (id) => document.getElementById(id).classList.add('active');
+        const closeModal = (id) => { document.getElementById(id).classList.remove('active'); clearInputs(id); };
+        const clearInputs = (modalId) => document.getElementById(modalId).querySelectorAll('input').forEach(i => i.value = '');
+        const getInitials = (name) => name.substring(0, 2).toUpperCase();
+        
+        let toastTimeout;
+        const showToast = (msg) => {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.style.display = 'block';
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => t.style.display = 'none', 3000);
+        };
+
+        const generateId = () => Math.random().toString(36).substr(2, 9);
+        const getPlayer = (id) => gameState.players[id];
+        
+        // Compute net worth: balance + sum(property value + house value)
+        const getNetWorth = (playerId) => {
+            let p = getPlayer(playerId);
+            if(!p || p.bankrupt) return 0;
+            let nw = p.balance;
+            for(let propId in gameState.properties) {
+                let stateProp = gameState.properties[propId];
+                if(stateProp.ownerId === playerId) {
+                    let baseProp = DEFAULT_PROPERTIES.find(dp => dp.id === propId);
+                    nw += baseProp.price;
+                    nw += (stateProp.houses * baseProp.housePrice);
+                }
+            }
+            return nw;
+        };
+
+        // --- WEBRTC NETWORKING ---
+
+        function initPeer(id, onSuccess) {
+            peer = new Peer(id);
+            peer.on('open', (id) => {
+                myId = id;
+                lucide.createIcons();
+                if(onSuccess) onSuccess();
+            });
+            peer.on('error', (err) => {
+                alert("Connection Error: " + err.type);
+                nav('screen-home');
+                console.error(err);
+            });
+        }
+
+        // --- HOST LOGIC ---
+
+        function initHost() {
+            const name = document.getElementById('host-name').value || 'Banker';
+            const bal = parseInt(document.getElementById('host-start-bal').value) || 15000000;
+            const sal = parseInt(document.getElementById('host-salary').value) || 2000000;
+            
+            document.getElementById('btn-create-room').innerHTML = '<span class="loader"></span> Creating...';
+            document.getElementById('btn-create-room').disabled = true;
+
+            roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+            const hostId = APP_PREFIX + roomCode;
+
+            initPeer(hostId, () => {
+                isHost = true;
+                gameState.settings = { startBalance: bal, salary: sal };
+                
+                // Add Host as player 1
+                gameState.players[myId] = {
+                    id: myId, name: name, color: COLORS[0], balance: bal, isHost: true, bankrupt: false
+                };
+                
+                // Initialize property state
+                DEFAULT_PROPERTIES.forEach(p => gameState.properties[p.id] = { ownerId: null, houses: 0 });
+                
+                // Listen for connections
+                peer.on('connection', (conn) => {
+                    conn.on('open', () => {
+                        hostConnections[conn.peer] = conn;
+                        conn.on('data', (data) => handleActionFromClient(conn.peer, data));
+                        conn.on('close', () => handleDisconnect(conn.peer));
+                    });
+                });
+
+                document.getElementById('lobby-code').textContent = roomCode;
+                document.getElementById('lobby-host-controls').style.display = 'block';
+                document.getElementById('lobby-wait-text').style.display = 'none';
+                nav('screen-lobby');
+                renderLobby();
+                lucide.createIcons();
+            });
+        }
+
+        function handleDisconnect(peerId) {
+            if(gameState.players[peerId]) {
+                addLog('system', 'Bank', gameState.players[peerId].name, 0, 'Disconnected');
+                syncState();
+            }
+            delete hostConnections[peerId];
+        }
+
+        function broadcast(actionType, payload = null) {
+            const msg = { type: actionType, state: gameState, payload: payload };
+            Object.values(hostConnections).forEach(conn => {
+                if(conn.open) conn.send(msg);
+            });
+            handleStateUpdate(msg); // Host updates itself
+        }
+
+        function syncState() { broadcast('SYNC'); }
+
+        function addLog(type, from, to, amount, msg) {
+            gameState.log.unshift({ id: generateId(), timestamp: Date.now(), type, from, to, amount, msg });
+            if(gameState.log.length > 50) gameState.log.pop();
+        }
+
+        // Host processes actions requested by clients
+        function handleActionFromClient(peerId, action) {
+            if(gameState.status === 'ended') return;
+
+            switch(action.type) {
+                case 'JOIN':
+                    if(gameState.status !== 'lobby') {
+                        hostConnections[peerId].send({ type: 'ERROR', payload: 'Game already started' });
+                        return;
+                    }
+                    if(Object.keys(gameState.players).length >= 6) return;
+                    gameState.players[peerId] = {
+                        id: peerId, name: action.payload.name, 
+                        color: COLORS[Object.keys(gameState.players).length % COLORS.length],
+                        balance: gameState.settings.startBalance, isHost: false, bankrupt: false
+                    };
+                    syncState();
+                    break;
+                
+                case 'REQ_PAY_PLAYER':
+                    // Check balance
+                    let p1 = gameState.players[peerId];
+                    if(p1.balance < action.payload.amount) return;
+                    
+                    // Send confirmation request to target player
+                    let targetConn = hostConnections[action.payload.to];
+                    if(targetConn && targetConn.open) {
+                        targetConn.send({
+                            type: 'REQUIRE_CONFIRMATION',
+                            payload: { fromId: peerId, fromName: p1.name, amount: action.payload.amount, transferId: generateId() }
+                        });
+                    }
+                    break;
+
+                case 'CONFIRM_PAYMENT':
+                    let transfer = action.payload; // { fromId, amount, accepted }
+                    if(transfer.accepted) {
+                        let sender = gameState.players[transfer.fromId];
+                        let receiver = gameState.players[peerId];
+                        if(sender && receiver && sender.balance >= transfer.amount) {
+                            sender.balance -= transfer.amount;
+                            receiver.balance += transfer.amount;
+                            addLog('transfer', sender.name, receiver.name, transfer.amount, 'Transfer');
+                            syncState();
+                        }
+                    } else {
+                        // Notify sender it was declined
+                        let sConn = hostConnections[transfer.fromId];
+                        if(sConn && sConn.open) sConn.send({ type: 'TOAST', payload: `${gameState.players[peerId].name} declined the payment.` });
+                    }
+                    break;
+
+                case 'PAY_BANK':
+                    let p2 = gameState.players[peerId];
+                    if(p2.balance >= action.payload.amount) {
+                        p2.balance -= action.payload.amount;
+                        addLog('bank_in', p2.name, 'Bank', action.payload.amount, 'Paid Bank');
+                        syncState();
+                    }
+                    break;
+                
+                case 'GET_BANK':
+                    let p3 = gameState.players[peerId];
+                    p3.balance += action.payload.amount;
+                    addLog('bank_out', 'Bank', p3.name, action.payload.amount, action.payload.msg || 'Received from Bank');
+                    syncState();
+                    break;
+
+                case 'BUY_PROPERTY':
+                    let p4 = gameState.players[peerId];
+                    let prop = DEFAULT_PROPERTIES.find(p => p.id === action.payload.propId);
+                    if(prop && gameState.properties[prop.id].ownerId === null && p4.balance >= prop.price) {
+                        p4.balance -= prop.price;
+                        gameState.properties[prop.id].ownerId = peerId;
+                        addLog('property', p4.name, 'Bank', prop.price, `Bought ${prop.name}`);
+                        syncState();
+                    }
+                    break;
+                
+                case 'BUILD_HOUSE':
+                    let p5 = gameState.players[peerId];
+                    let bProp = DEFAULT_PROPERTIES.find(p => p.id === action.payload.propId);
+                    let stateProp = gameState.properties[action.payload.propId];
+                    if(stateProp.ownerId === peerId && stateProp.houses < 5 && p5.balance >= bProp.housePrice) {
+                        p5.balance -= bProp.housePrice;
+                        stateProp.houses++;
+                        let type = stateProp.houses === 5 ? 'Hotel' : 'House';
+                        addLog('property', p5.name, 'Bank', bProp.housePrice, `Built ${type} on ${bProp.name}`);
+                        syncState();
+                    }
+                    break;
+            }
+        }
+
+        // --- CLIENT LOGIC ---
+
+        function joinGame() {
+            const code = document.getElementById('join-code').value;
+            const name = document.getElementById('join-name').value || 'Player';
+            if(!code || code.length !== 4) { alert("Enter a valid 4-digit code"); return; }
+
+            document.getElementById('btn-join-room').innerHTML = '<span class="loader"></span> Connecting...';
+            document.getElementById('btn-join-room').disabled = true;
+
+            const hostId = APP_PREFIX + code;
+            
+            initPeer(null, () => {
+                clientConn = peer.connect(hostId, { reliable: true });
+                
+                clientConn.on('open', () => {
+                    isHost = false;
+                    clientConn.send({ type: 'JOIN', payload: { name: name } });
+                    nav('screen-lobby');
+                });
+
+                clientConn.on('data', (data) => {
+                    if(data.type === 'ERROR') {
+                        alert(data.payload);
+                        nav('screen-home');
+                    } else if(data.type === 'REQUIRE_CONFIRMATION') {
+                        showConfirmModal(data.payload);
+                    } else if(data.type === 'TOAST') {
+                        showToast(data.payload);
+                    } else {
+                        handleStateUpdate(data);
+                    }
+                });
+
+                clientConn.on('close', () => {
+                    alert("Host disconnected.");
+                    location.reload();
+                });
+            });
+        }
+
+        // Send action to Host
+        function sendAction(type, payload) {
+            if(isHost) {
+                // Host executes its own actions directly via the handler logic
+                handleActionFromClient(myId, {type, payload});
+            } else {
+                if(clientConn && clientConn.open) {
+                    clientConn.send({type, payload});
+                }
+            }
+        }
+
+        // --- SHARED UI LOGIC ---
+
+        function handleStateUpdate(msg) {
+            gameState = msg.state;
+            
+            if(gameState.status === 'lobby') {
+                renderLobby();
+            } else if (gameState.status === 'playing') {
+                if(document.getElementById('screen-lobby').classList.contains('active')) {
+                    nav('screen-game');
+                    if(isHost) document.querySelector('.nav-item.host-only').style.display = 'flex';
+                }
+                
+                // Check if I'm bankrupt
+                let me = getPlayer(myId);
+                if(me && me.bankrupt) {
+                    document.getElementById('wallet-balance').textContent = "BANKRUPT";
+                    document.getElementById('wallet-balance').classList.add('text-danger');
+                    document.querySelectorAll('.action-grid button').forEach(b => b.disabled = true);
+                } else {
+                    renderWallet();
+                }
+                
+                renderProperties();
+                renderLog();
+                if(isHost) renderHostDashboard();
+            } else if (gameState.status === 'ended') {
+                nav('screen-end');
+                renderEndScreen();
+            }
+            lucide.createIcons();
+        }
+
+        function renderLobby() {
+            document.getElementById('lobby-count').textContent = Object.keys(gameState.players).length;
+            const list = document.getElementById('lobby-players-list');
+            list.innerHTML = '';
+            
+            Object.values(gameState.players).forEach(p => {
+                list.innerHTML += `
+                    <div class="list-item">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div class="avatar" style="background: ${p.color}">${getInitials(p.name)}</div>
+                            <span class="font-bold">${p.name} ${p.isHost ? '<i data-lucide="crown" style="width: 14px; height: 14px; color: var(--gold); display: inline;"></i>' : ''}</span>
+                        </div>
+                        ${p.id === myId ? '<span class="text-muted text-sm">You</span>' : ''}
+                    </div>
+                `;
+            });
+        }
+
+        function startGame() {
+            if(!isHost) return;
+            gameState.status = 'playing';
+            syncState();
+        }
+
+        function renderWallet() {
+            const me = getPlayer(myId);
+            if(!me) return;
+            
+            document.getElementById('wallet-name').textContent = me.name;
+            document.getElementById('wallet-balance').textContent = formatIDR(me.balance);
+            
+            let nw = getNetWorth(myId);
+            let nwEl = document.getElementById('wallet-networth');
+            if(nw > me.balance) {
+                nwEl.style.display = 'block';
+                nwEl.textContent = `Net Worth: ${formatIDR(nw)}`;
+            }
+            
+            let avatar = document.getElementById('my-avatar');
+            avatar.style.background = me.color;
+            avatar.textContent = getInitials(me.name);
+
+            // Populate Dropdowns
+            const pSelect = document.getElementById('pay-player-select');
+            pSelect.innerHTML = '<option value="">Select Player...</option>';
+            Object.values(gameState.players).forEach(p => {
+                if(p.id !== myId && !p.bankrupt) {
+                    pSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+                }
+            });
+
+            const propSelect = document.getElementById('buy-prop-select');
+            propSelect.innerHTML = '<option value="">Select Property...</option>';
+            DEFAULT_PROPERTIES.forEach(p => {
+                if(gameState.properties[p.id].ownerId === null) {
+                    propSelect.innerHTML += `<option value="${p.id}">${p.name} - ${formatIDR(p.price)}</option>`;
+                }
+            });
+
+            // Mini Log
+            const mLog = document.getElementById('wallet-mini-log');
+            mLog.innerHTML = '';
+            let myLogs = gameState.log.filter(l => l.from === me.name || l.to === me.name).slice(0,3);
+            if(myLogs.length === 0) mLog.innerHTML = '<div class="p-3 text-center text-muted text-sm" style="padding: 15px;">No transactions yet</div>';
+            myLogs.forEach(l => {
+                let isIncoming = l.to === me.name;
+                mLog.innerHTML += `
+                    <div class="list-item" style="padding: 10px 15px;">
+                        <div>
+                            <div class="text-sm">${l.msg || l.type}</div>
+                            <div class="text-muted" style="font-size: 0.7rem;">${isIncoming ? 'From: ' + l.from : 'To: ' + l.to}</div>
+                        </div>
+                        <div class="font-bold ${isIncoming ? 'text-emerald' : 'text-danger'}">
+                            ${isIncoming ? '+' : '-'}${formatIDR(l.amount)}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderProperties() {
+            const list = document.getElementById('properties-list');
+            const search = document.getElementById('prop-search').value.toLowerCase();
+            list.innerHTML = '';
+
+            DEFAULT_PROPERTIES.forEach(p => {
+                if(search && !p.name.toLowerCase().includes(search)) return;
+                
+                let state = gameState.properties[p.id];
+                let owner = state.ownerId ? getPlayer(state.ownerId) : null;
+                
+                let html = `
+                    <div class="glass-card list-item" style="margin-bottom: 10px; cursor: pointer;" onclick="openPropertyAction('${p.id}')">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div class="prop-color ${p.cssClass}"></div>
+                            <div>
+                                <div class="font-bold">${p.name}</div>
+                                <div class="text-muted text-sm">
+                                    ${owner ? `Owner: <span style="color:${owner.color}">${owner.name}</span>` : formatIDR(p.price)}
+                                </div>
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                `;
+
+                if(owner) {
+                    if(p.group !== 'station' && p.group !== 'util') {
+                        let hHtml = '';
+                        if(state.houses === 5) hHtml = '<i data-lucide="building" class="text-danger" style="width: 16px;"></i>';
+                        else for(let i=0; i<state.houses; i++) hHtml += '<i data-lucide="home" class="text-emerald" style="width: 14px;"></i>';
+                        html += `<div>${hHtml}</div>`;
+                    }
+                } else {
+                    html += `<span class="badge">Unowned</span>`;
+                }
+
+                html += `</div></div>`;
+                list.innerHTML += html;
+            });
+            lucide.createIcons();
+        }
+
+        function renderLog() {
+            const list = document.getElementById('full-log-list');
+            list.innerHTML = '';
+            if(gameState.log.length === 0) list.innerHTML = '<div class="p-3 text-center text-muted" style="padding: 20px;">Log is empty</div>';
+            
+            gameState.log.forEach(l => {
+                let time = new Date(l.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                list.innerHTML += `
+                    <div class="list-item">
+                        <div style="flex: 1;">
+                            <div class="text-sm text-muted mb-1">${time} &bull; ${l.from} &rarr; ${l.to}</div>
+                            <div class="font-bold">${l.msg || l.type}</div>
+                        </div>
+                        <div class="font-bold text-gold">${formatIDR(l.amount)}</div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderHostDashboard() {
+            if(!isHost) return;
+            
+            let totalCirc = 0;
+            const list = document.getElementById('host-players-list');
+            list.innerHTML = '';
+
+            let sortedPlayers = Object.values(gameState.players).sort((a,b) => getNetWorth(b.id) - getNetWorth(a.id));
+
+            sortedPlayers.forEach((p, index) => {
+                if(!p.bankrupt) totalCirc += p.balance;
+                
+                list.innerHTML += `
+                    <div class="list-item" style="${p.bankrupt ? 'opacity: 0.5;' : 'cursor: pointer;'}" ${!p.bankrupt ? `onclick="openHostPlayerModal('${p.id}')"` : ''}>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div class="font-bold text-muted w-6">${index+1}</div>
+                            <div class="avatar" style="background: ${p.color}; width: 30px; height: 30px; font-size: 10px;">${getInitials(p.name)}</div>
+                            <div>
+                                <div class="font-bold">${p.name} ${p.bankrupt ? '<span class="badge text-danger border-danger">Bankrupt</span>' : ''}</div>
+                                <div class="text-sm text-muted">Net: ${formatIDR(getNetWorth(p.id))}</div>
+                            </div>
+                        </div>
+                        <div class="font-bold text-gold">${formatIDR(p.balance)}</div>
+                    </div>
+                `;
+            });
+            document.getElementById('host-total-money').textContent = formatIDR(totalCirc);
+        }
+
+        // --- ACTIONS ---
+
+        function initiatePayPlayer() {
+            let to = document.getElementById('pay-player-select').value;
+            let amt = parseInt(document.getElementById('pay-player-amount').value);
+            if(!to || !amt || amt <= 0) { showToast("Invalid selection or amount"); return; }
+            if(getPlayer(myId).balance < amt) { showToast("Insufficient funds"); return; }
+            
+            sendAction('REQ_PAY_PLAYER', { to: to, amount: amt });
+            closeModal('modal-pay-player');
+            showToast("Waiting for receiver to confirm...");
+        }
+
+        function showConfirmModal(data) {
+            pendingTransfer = data;
+            document.getElementById('confirm-receive-from').textContent = data.fromName;
+            document.getElementById('confirm-receive-amount').textContent = formatIDR(data.amount);
+            openModal('modal-confirm-receive');
+            if("vibrate" in navigator) navigator.vibrate(200);
+        }
+
+        function resolveTransfer(accepted) {
+            if(pendingTransfer) {
+                sendAction('CONFIRM_PAYMENT', { ...pendingTransfer, accepted });
+                pendingTransfer = null;
+            }
+            closeModal('modal-confirm-receive');
+        }
+
+        function payBank() {
+            let amt = parseInt(document.getElementById('pay-bank-amount').value);
+            if(!amt || amt <= 0) return;
+            if(getPlayer(myId).balance < amt) { showToast("Insufficient funds"); return; }
+            
+            sendAction('PAY_BANK', { amount: amt });
+            closeModal('modal-pay-bank');
+            showToast(`Paid ${formatIDR(amt)} to Bank`);
+        }
+
+        function receivePassGo() {
+            sendAction('GET_BANK', { amount: gameState.settings.salary, msg: 'Pass GO' });
+            closeModal('modal-get-bank');
+            showToast("Collected Salary!");
+        }
+
+        function receiveCustomBank() {
+            let amt = parseInt(document.getElementById('get-bank-amount').value);
+            if(!amt || amt <= 0) return;
+            sendAction('GET_BANK', { amount: amt, msg: 'Received from Bank' });
+            closeModal('modal-get-bank');
+            showToast(`Received ${formatIDR(amt)}`);
+        }
+
+        function buyProperty() {
+            let propId = document.getElementById('buy-prop-select').value;
+            if(!propId) return;
+            let prop = DEFAULT_PROPERTIES.find(p => p.id === propId);
+            if(getPlayer(myId).balance < prop.price) { showToast("Insufficient funds"); return; }
+            
+            sendAction('BUY_PROPERTY', { propId: propId });
+            closeModal('modal-buy-property');
+        }
+
+        // Property Modal Actions
+        function openPropertyAction(propId) {
+            selectedPropertyId = propId;
+            let baseProp = DEFAULT_PROPERTIES.find(p => p.id === propId);
+            let stateProp = gameState.properties[propId];
+            let owner = stateProp.ownerId ? getPlayer(stateProp.ownerId) : null;
+
+            document.getElementById('pa-name').textContent = baseProp.name;
+            document.getElementById('pa-owner').textContent = owner ? owner.name : 'Unowned';
+            document.getElementById('pa-owner').style.color = owner ? owner.color : 'inherit';
+
+            document.getElementById('pa-owner-actions').style.display = 'none';
+            document.getElementById('pa-host-actions').style.display = 'none';
+
+            if(owner && owner.id === myId && baseProp.housePrice > 0 && stateProp.houses < 5) {
+                document.getElementById('pa-owner-actions').style.display = 'flex';
+                let nextIsHotel = stateProp.houses === 4;
+                document.getElementById('pa-house-price').textContent = `${nextIsHotel ? 'Hotel' : 'House'}: ${formatIDR(baseProp.housePrice)}`;
+            }
+
+            if(isHost) {
+                document.getElementById('pa-host-actions').style.display = 'flex';
+            }
+
+            openModal('modal-prop-action');
+        }
+
+        function buildHouse() {
+            sendAction('BUILD_HOUSE', { propId: selectedPropertyId });
+            closeModal('modal-prop-action');
+        }
+
+        function forceTransferProp() {
+            if(!isHost) return;
+            let newOwnerName = prompt("Enter new owner's exact name (leave blank to return to Bank):");
+            if(newOwnerName === null) return; // Cancelled
+            
+            let newOwnerId = null;
+            if(newOwnerName.trim() !== '') {
+                let p = Object.values(gameState.players).find(pl => pl.name.toLowerCase() === newOwnerName.toLowerCase() && !pl.bankrupt);
+                if(!p) { alert("Player not found"); return; }
+                newOwnerId = p.id;
+            }
+
+            gameState.properties[selectedPropertyId].ownerId = newOwnerId;
+            gameState.properties[selectedPropertyId].houses = 0; // reset houses on transfer
+            let bName = DEFAULT_PROPERTIES.find(p => p.id === selectedPropertyId).name;
+            addLog('system', 'Bank', newOwnerId ? getPlayer(newOwnerId).name : 'Bank', 0, `Transferred ${bName}`);
+            syncState();
+            closeModal('modal-prop-action');
+            showToast("Property Transferred");
+        }
+
+        // Host Player Admin
+        function openHostPlayerModal(playerId) {
+            if(!isHost) return;
+            selectedPlayerId = playerId;
+            let p = getPlayer(playerId);
+            document.getElementById('hp-name').textContent = p.name;
+            document.getElementById('hp-balance').textContent = formatIDR(p.balance);
+            openModal('modal-host-player');
+        }
+
+        function adminGiveMoney() {
+            let p = getPlayer(selectedPlayerId);
+            let amt = prompt(`Give money to ${p.name} (can be negative to deduct):`);
+            if(!amt) return;
+            amt = parseInt(amt);
+            if(isNaN(amt)) return;
+
+            p.balance += amt;
+            addLog('system', 'Bank', p.name, amt, 'Admin Adjustment');
+            syncState();
+            closeModal('modal-host-player');
+        }
+
+        function adminDeclareBankrupt() {
+            if(confirm("Are you sure? This will remove all their properties and they cannot play anymore.")) {
+                let p = getPlayer(selectedPlayerId);
+                p.balance = 0;
+                p.bankrupt = true;
+                // Return properties to bank
+                for(let propId in gameState.properties) {
+                    if(gameState.properties[propId].ownerId === selectedPlayerId) {
+                        gameState.properties[propId].ownerId = null;
+                        gameState.properties[propId].houses = 0;
+                    }
+                }
+                addLog('system', p.name, 'Bank', 0, 'DECLARED BANKRUPT');
+                syncState();
+                closeModal('modal-host-player');
+            }
+        }
+
+        function endGameConfirm() {
+            if(confirm("End the game and show final results for everyone?")) {
+                gameState.status = 'ended';
+                syncState();
+            }
+        }
+
+        function renderEndScreen() {
+            const list = document.getElementById('end-leaderboard');
+            list.innerHTML = '';
+            
+            let sorted = Object.values(gameState.players).sort((a,b) => getNetWorth(b.id) - getNetWorth(a.id));
+            
+            sorted.forEach((p, index) => {
+                list.innerHTML += `
+                    <div class="list-item" style="background: ${index === 0 ? 'rgba(245, 197, 24, 0.1)' : 'transparent'}; border-radius: 10px; margin-bottom: 5px;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div class="font-bold ${index === 0 ? 'text-gold text-2xl' : 'text-muted'}">#${index+1}</div>
+                            <div>
+                                <div class="font-bold" style="font-size: 1.2rem;">${p.name}</div>
+                                <div class="text-sm text-muted">Cash: ${formatIDR(p.balance)}</div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-bold text-emerald">${formatIDR(getNetWorth(p.id))}</div>
+                            <div class="text-xs text-muted">Net Worth</div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+    </script>
+</body>
+</html>
